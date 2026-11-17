@@ -277,7 +277,7 @@ When the tagging rules improve, automatic tags are rebuilt on the next app load.
 A score from 0 to 100 for how much of a hidden gem a game is:
 
 ```
-score = 100 × (0.50·Quality + 0.30·Obscurity + 0.20·Freshness) × Sample
+score = 100 × (0.50·Quality + 0.30·Obscurity + 0.20·Freshness) × Sample × Popularity
 
 Quality    Likes ratio, adjusted for how many votes there are (Wilson lower bound, 95%).
            Mapped so 70% → 0 and 95% → 1. A game with 12 likes and 0 dislikes
@@ -286,9 +286,11 @@ Obscurity  Highest across roughly 25–600 players online; lower for near-empty 
            (hard to find a lobby); falls to 0 around 6,000 players.
 Freshness  1.0 if updated in the last 30 days, falling to 0 at 18 months.
 Sample     Scales the score down when there are fewer than 500 votes in total.
+Popularity 1.0 up to 2,000 players online, easing to 0.4 at 20,000+, so front-page
+           hits can't score like hidden gems on quality and freshness alone.
 ```
 
-The **gem badge** needs all three: **approval ≥ 85%**, **fewer than 2,000 players online**, and **at least 100 votes**.
+The **gem badge** needs all three: **approval ≥ 85%**, **5 to 1,999 players online** (enough to find a lobby, few enough to be hidden), and **at least 100 votes**.
 
 ### Recommendations (Taste Graph)
 
