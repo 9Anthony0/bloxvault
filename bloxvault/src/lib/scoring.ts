@@ -3,7 +3,7 @@ import { passesGemGates } from "./constants";
 /**
  * Hidden Gem Score (0–100)
  * ------------------------------------------------------------
- *   score = 100 × (0.50·Q + 0.30·O + 0.20·F) × S
+ *   score = 100 × (0.50·Q + 0.30·O + 0.20·F) × S × P
  *
  *   Q  Quality      Wilson lower bound (95%) of the like ratio, mapped so
  *                   70% → 0 and 95% → 1. Wilson stops a game with 12 likes / 0 dislikes
@@ -12,8 +12,10 @@ import { passesGemGates } from "./constants";
  *                   toward dead (0 CCU = can't find lobbies) and falls to 0 at ~6k CCU.
  *   F  Freshness    1.0 if updated within 30 days, decays linearly to 0 at 18 months.
  *   S  Sample gate  Soft penalty for < 500 total votes (too little signal).
+ *   P  Popularity   1.0 up to 2k CCU, easing to 0.4 at 20k+ CCU, so front-page hits
+ *                   can't score like hidden gems on quality and freshness alone.
  *
- * `isHiddenGem` is the hard gate from the spec: approval ≥ 85% AND CCU < 2,000 (and ≥100 votes so it isn't noise).
+ * `isHiddenGem` is the hard gate from the spec: approval ≥ 85% AND 5 ≤ CCU < 2,000 (and ≥100 votes so it isn't noise).
  */
 
 export interface GemInputs {
@@ -30,6 +32,7 @@ export interface GemBreakdown {
   obscurity: number;
   freshness: number;
   sample: number;
+  popularity: number;
   approvalPercentage: number;
   wilson: number;
   isHiddenGem: boolean;
@@ -61,6 +64,13 @@ export function obscurityFactor(ccu: number) {
   return clamp01(1 - (l - hiStart) / (hiEnd - hiStart));
 }
 
+/** 1.0 up to 2,000 CCU, then eases (log scale) to a floor of 0.4 at 20,000+ CCU. */
+export function popularityPenalty(ccu: number) {
+  if (ccu <= 2000) return 1;
+  const t = clamp01((Math.log10(ccu) - Math.log10(2000)) / (Math.log10(20000) - Math.log10(2000)));
+  return 1 - 0.6 * t;
+}
+
 export function freshnessFactor(lastUpdated: Date | null, now = new Date()) {
   if (!lastUpdated) return 0.5;
   const days = (now.getTime() - lastUpdated.getTime()) / 86_400_000;
@@ -75,7 +85,8 @@ export function computeHiddenGem({ upVotes, downVotes, ccu, lastUpdated, now = n
   const freshness = freshnessFactor(lastUpdated, now);
   const votes = upVotes + downVotes;
   const sample = votes >= 500 ? 1 : 0.5 + 0.5 * (votes / 500);
-  const score = Math.round(100 * (0.5 * quality + 0.3 * obscurity + 0.2 * freshness) * sample * 10) / 10;
+  const popularity = popularityPenalty(ccu);
+  const score = Math.round(100 * (0.5 * quality + 0.3 * obscurity + 0.2 * freshness) * sample * popularity * 10) / 10;
   const approvalPercentage = Math.round(approvalPct(upVotes, downVotes) * 10) / 10;
   return {
     score,
@@ -83,6 +94,7 @@ export function computeHiddenGem({ upVotes, downVotes, ccu, lastUpdated, now = n
     obscurity,
     freshness,
     sample,
+    popularity,
     wilson,
     approvalPercentage,
     isHiddenGem: passesGemGates({ approvalPercentage, ccu, upVotes, downVotes }),
