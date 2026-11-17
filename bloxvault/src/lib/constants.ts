@@ -27,9 +27,11 @@ export const GEM_MIN_APPROVAL = 85; // %
 export const GEM_MAX_CCU = 2000;
 /** Below this many total votes the approval % is noise — not eligible for the gem badge. */
 export const GEM_MIN_VOTES = 100;
+/** Below this many players online you usually can't find a lobby, so it isn't a playable gem right now. */
+export const GEM_MIN_CCU = 5;
 
 export function passesGemGates(g: { approvalPercentage: number; ccu: number; upVotes: number; downVotes: number }) {
-  return g.approvalPercentage >= GEM_MIN_APPROVAL && g.ccu < GEM_MAX_CCU && g.upVotes + g.downVotes >= GEM_MIN_VOTES;
+  return g.approvalPercentage >= GEM_MIN_APPROVAL && g.ccu >= GEM_MIN_CCU && g.ccu < GEM_MAX_CCU && g.upVotes + g.downVotes >= GEM_MIN_VOTES;
 }
 
 /**
